@@ -34,14 +34,14 @@ RoutingTable::lookup(uint32_t ip) const
 
   // FILL THIS IN
 
-  const RoutingTableEntry *match = NULL;
+  const RoutingTableEntry *match = nullptr;
 
   for (std::list<RoutingTableEntry>::const_iterator rt = m_entries.begin(); rt != m_entries.end(); rt++)
     if ((ip & rt->mask) == (rt->dest & rt->mask))
-      if (match == NULL || rt->mask > match->mask)
+      if (match == nullptr || rt->mask > match->mask)
         match = &(*rt);
 
-  if (match == NULL)
+  if (match == nullptr)
     throw std::runtime_error("Routing entry not found");
 
   return *match; 

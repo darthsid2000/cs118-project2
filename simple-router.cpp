@@ -39,6 +39,58 @@ SimpleRouter::processPacket(const Buffer& packet, const std::string& inIface)
 
   // FILL THIS IN
 
+  struct ethernet_hdr eth_hdr;
+  memcpy(&eth_hdr, &packet[0], sizeof(eth_hdr));
+
+  if (eth_hdr.ether_type == ntohs(ethertype_ip)) {
+    if (packet.size() - 14 < sizeof(ip_hdr))
+      return;
+    struct ip_hdr i_hdr;
+    memcpy(&i_hdr, &packet[14], sizeof(i_hdr));
+
+    Interface dest_int = findIfaceByIp(i_hdr.ip_dst);
+
+    if (dest_int || cksum(&i_hdr, sizeof(i_hdr)) != 0xffff)
+      return;
+
+    i_hdr.ip_ttl--;
+    if (i_hdr.ip_ttl < 0)
+      return;
+    i_hdr.ip_sum = 0;
+    i_hdr.ip_sum = cksum(&i_hdr, sizeof(i_hdr));
+    ArpCache arp = getArp();
+
+    if (!arp.lookup(i_hdr.ip_src))
+      arp.insertArpEntry(eth_hdr.ether_shost, i_hdr.ip_src);
+
+    if (arp.lookup(i_hdr.ip_dst)) {
+      try {
+        RoutingTable rt = getRoutingTable();
+        RoutingTableEntry match = rt.lookup(i_hdr.ip_dst);
+
+        if (ipToString(match.dest) == "0.0.0.0")
+          memcpy(eth_hdr.ether_dhost, &(arp.lookup(i_hdr.ip_dst)->mac)[0], sizeof(eth_hdr.ether_dhost));
+        else
+          memcpy(eth_hdr.ether_dhost, &(arp.lookup(match.dest)->mac)[0], sizeof(eth_hdr.ether_dhost))
+
+        dest_int = *findIfaceByName(match.ifName);
+        memcpy(eth_hdr.ether_shost, &dest_int.addr, sizeof(eth_hdr.ether_shost));
+        memcpy(&packet[0], &eth_hdr, sizeof(eth_hdr));
+        memcpy(&packet[14], &i_hdr, sizeof(i_hdr));
+        sendPacket(packet, match.ifName);
+      }
+      catch (std::runtime_error &error);
+    }
+    else {
+      
+    }
+
+  }
+
+  else if (eth_hdr.ether_type == ntohs(ethertype_arp)) {
+
+  }
+
 }
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
