@@ -38,7 +38,7 @@ RoutingTable::lookup(uint32_t ip) const
 
   for (std::list<RoutingTableEntry>::iterator rt = m_entries.begin(); rt != m_entries.end(); rt++)
     if (ip & rt->mask == rt->dest & rt->mask)
-      if (match == NULL || rt->mask > ->mask)
+      if (match == NULL || rt->mask > match->mask)
         match = &(*rt);
 
   if (match == NULL)
