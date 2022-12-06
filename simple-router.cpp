@@ -39,9 +39,9 @@ SimpleRouter::processPacket(const Buffer& packet, const std::string& inIface)
 
   // FILL THIS IN
 
-  // If ethernet packet less than minimum size, discard
+  /*// If ethernet packet less than minimum size, discard
   if (packet.size() < 64)
-    return;
+    return;*/
 
   Buffer new_packet(packet); // Create duplicate packet
   ethernet_hdr* eth_hdr = (ethernet_hdr *)new_packet.data();
