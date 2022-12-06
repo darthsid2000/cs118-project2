@@ -43,8 +43,8 @@ SimpleRouter::processPacket(const Buffer& packet, const std::string& inIface)
   if (packet.size() < 64)
     return;
 
-  Buffer packet(packet); // Create duplicate packet
-  ethernet_hdr* eth_hdr = (ethernet_hdr *)packet.data();
+  Buffer new_packet(packet); // Create duplicate packet
+  ethernet_hdr* eth_hdr = (ethernet_hdr *)new_packet.data();
 
   // Handle ARP packets
   if (eth_hdr->ether_type == ntohs(ethertype_arp)) {
@@ -53,7 +53,7 @@ SimpleRouter::processPacket(const Buffer& packet, const std::string& inIface)
 
   // Handle IP packets
   else if (eth_hdr->ether_type == ntohs(ethertype_ip)) {
-    ip_hdr* i_hdr = (ip_hdr *)(packet.data() + sizeof(ethernet_hdr));
+    ip_hdr* i_hdr = (ip_hdr *)(new_packet.data() + sizeof(ethernet_hdr));
 
     const Interface* dest_int = findIfaceByIp(i_hdr->ip_dst);
 
@@ -78,8 +78,9 @@ SimpleRouter::processPacket(const Buffer& packet, const std::string& inIface)
       RoutingTable rt = getRoutingTable();
       next_hop = rt.lookup(i_hdr->ip_dst);
     }
-    catch (std::runtime_error& e)
+    catch (std::runtime_error& e) {
       return;
+    }
 
     dest_int = findIfaceByName(next_hop.ifName);
     memcpy(eth_hdr->ether_shost, dest_int->addr.data(), ETHER_ADDR_LEN);
@@ -93,12 +94,12 @@ SimpleRouter::processPacket(const Buffer& packet, const std::string& inIface)
         memcpy(eth_hdr->ether_dhost, (arp.lookup(next_hop.dest)->mac).data(), ETHER_ADDR_LEN);
       }
 
-      memcpy(packet.data()+sizeof(ethernet_hdr), i_hdr, sizeof(ip_hdr));
-      sendPacket(packet, next_hop.ifName);
+      memcpy(new_packet.data()+sizeof(ethernet_hdr), i_hdr, sizeof(ip_hdr));
+      sendPacket(new_packet, next_hop.ifName);
     }
 
     else {
-      arp.queueArpRequest(next_hop.dest, packet, dest_int);
+      arp.queueArpRequest(next_hop.dest, new_packet, dest_int.name);
     }
 
   }
