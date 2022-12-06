@@ -39,55 +39,67 @@ SimpleRouter::processPacket(const Buffer& packet, const std::string& inIface)
 
   // FILL THIS IN
 
-  struct ethernet_hdr eth_hdr;
-  memcpy(&eth_hdr, &packet[0], sizeof(eth_hdr));
+  // If ethernet packet less than minimum size, discard
+  if (packet.size() < 64)
+    return;
 
-  if (eth_hdr.ether_type == ntohs(ethertype_ip)) {
-    if (packet.size() - 14 < sizeof(ip_hdr))
-      return;
-    struct ip_hdr i_hdr;
-    memcpy(&i_hdr, &packet[14], sizeof(i_hdr));
+  Buffer packet(packet); // Create duplicate packet
+  ethernet_hdr* eth_hdr = (ethernet_hdr *)packet.data();
 
-    Interface dest_int = findIfaceByIp(i_hdr.ip_dst);
-
-    if (dest_int || cksum(&i_hdr, sizeof(i_hdr)) != 0xffff)
-      return;
-
-    i_hdr.ip_ttl--;
-    if (i_hdr.ip_ttl < 0)
-      return;
-    i_hdr.ip_sum = 0;
-    i_hdr.ip_sum = cksum(&i_hdr, sizeof(i_hdr));
-    ArpCache arp = getArp();
-
-    if (!arp.lookup(i_hdr.ip_src))
-      arp.insertArpEntry(eth_hdr.ether_shost, i_hdr.ip_src);
-
-    if (arp.lookup(i_hdr.ip_dst)) {
-      try {
-        RoutingTable rt = getRoutingTable();
-        RoutingTableEntry match = rt.lookup(i_hdr.ip_dst);
-
-        if (ipToString(match.dest) == "0.0.0.0")
-          memcpy(eth_hdr.ether_dhost, &(arp.lookup(i_hdr.ip_dst)->mac)[0], sizeof(eth_hdr.ether_dhost));
-        else
-          memcpy(eth_hdr.ether_dhost, &(arp.lookup(match.dest)->mac)[0], sizeof(eth_hdr.ether_dhost))
-
-        dest_int = *findIfaceByName(match.ifName);
-        memcpy(eth_hdr.ether_shost, &dest_int.addr, sizeof(eth_hdr.ether_shost));
-        memcpy(&packet[0], &eth_hdr, sizeof(eth_hdr));
-        memcpy(&packet[14], &i_hdr, sizeof(i_hdr));
-        sendPacket(packet, match.ifName);
-      }
-      catch (std::runtime_error &error);
-    }
-    else {
-      
-    }
-
+  // Handle ARP packets
+  if (eth_hdr->ether_type == ntohs(ethertype_arp)) {
+    return;
   }
 
-  else if (eth_hdr.ether_type == ntohs(ethertype_arp)) {
+  // Handle IP packets
+  else if (eth_hdr->ether_type == ntohs(ethertype_ip)) {
+    ip_hdr* i_hdr = (ip_hdr *)(packet.data() + sizeof(ethernet_hdr));
+
+    const Interface* dest_int = findIfaceByIp(i_hdr->ip_dst);
+
+    // If header is too short or invalid checksum or datagram is destined to current router, discard
+    if (i_hdr->ip_hl < 5 || cksum(i_hdr, sizeof(ip_hdr)) != 0xffff || dest_int)
+      return;
+
+    i_hdr->ip_ttl--;
+    if (i_hdr->ip_ttl < 0)
+      return;
+    i_hdr->ip_sum = 0;
+    i_hdr->ip_sum = cksum(i_hdr, sizeof(ip_hdr));
+    ArpCache arp = getArp();
+
+    // If source IP not already in ARP cache, record it
+    if (!arp.lookup(i_hdr->ip_src))
+      arp.insertArpEntry(eth_hdr->ether_shost, i_hdr->ip_src);
+
+    // Find next hop IP in routing table using longest matching prefix
+    RoutingTableEntry next_hop;
+    try {
+      RoutingTable rt = getRoutingTable();
+      next_hop = rt.lookup(i_hdr->ip_dst);
+    }
+    catch (std::runtime_error& e)
+      return;
+
+    dest_int = findIfaceByName(next_hop.ifName);
+    memcpy(eth_hdr->ether_shost, dest_int->addr.data(), ETHER_ADDR_LEN);
+
+    std::shared_ptr<ArpEntry> cache_entry = arp.lookup(i_hdr->ip_dst);
+    // If destination IP is already in ARP cache
+    if (cache_entry) {
+      if (ipToString(next_hop.dest) == "0.0.0.0") // Packet addressed to endnode on current router
+        memcpy(eth_hdr->ether_dhost, (cache_entry->mac).data(), ETHER_ADDR_LEN);
+      else {
+        memcpy(eth_hdr->ether_dhost, (arp.lookup(next_hop.dest)->mac).data(), ETHER_ADDR_LEN);
+      }
+
+      memcpy(packet.data()+sizeof(ethernet_hdr), i_hdr, sizeof(ip_hdr));
+      sendPacket(packet, next_hop.ifName);
+    }
+
+    else {
+      arp.queueArpRequest(next_hop.dest, packet, dest_int);
+    }
 
   }
 
