@@ -66,11 +66,11 @@ ArpCache::handleRequest(std::shared_ptr<ArpRequest> request) {
       memset(eth_hdr->ether_dhost, 0xFF, ETHER_ADDR_LEN);
       eth_hdr->ether_type = ethertype_arp;
 
-      a_hdr->arp_hrd = arp_hrd_ethernet;
-      a_hdr->arp_pro = ethertype_ip;
+      a_hdr->arp_hrd = htons(arp_hrd_ethernet);
+      a_hdr->arp_pro = htons(ethertype_ip);
       a_hdr->arp_hln = 6;
       a_hdr->arp_pln = 4;
-      a_hdr->arp_op = arp_op_request;
+      a_hdr->arp_op = htons(arp_op_request);
       memcpy(a_hdr->arp_sha, source_int->addr.data(), ETHER_ADDR_LEN);
       a_hdr->arp_sip = source_int->ip;
       a_hdr->arp_tip = request->ip;

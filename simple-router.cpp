@@ -47,13 +47,14 @@ SimpleRouter::processPacket(const Buffer& packet, const std::string& inIface)
   ethernet_hdr* eth_hdr = (ethernet_hdr *)new_packet.data();
 
   // Handle ARP packets
-  if (eth_hdr->ether_type == ntohs(ethertype_arp)) {
+  if (eth_hdr->ether_type == htons(ethertype_arp)) {
     std::cerr << "Received ARP packet" << std::endl;
-    return;
+    
+    arp_hdr* a_hdr = (arp_hdr *)(new_packet.data() + sizeof(ethernet_hdr));
   }
 
   // Handle IP packets
-  else if (eth_hdr->ether_type == ntohs(ethertype_ip)) {
+  else if (eth_hdr->ether_type == htons(ethertype_ip)) {
 
     std::cerr << "Received IPv4 packet" << std::endl;
 
@@ -74,11 +75,11 @@ SimpleRouter::processPacket(const Buffer& packet, const std::string& inIface)
     i_hdr->ip_sum = cksum(i_hdr, sizeof(ip_hdr));
 
     // If source IP not already in ARP cache, record it
-    if (!m_arp.lookup(i_hdr->ip_src)) {
+    if (!getArp().lookup(i_hdr->ip_src)) {
       std::cerr << "Recording source in ARP cache" << std::endl;
       Buffer source_mac(sizeof(ETHER_ADDR_LEN));
       memcpy(source_mac.data(), eth_hdr->ether_shost, ETHER_ADDR_LEN);
-      m_arp.insertArpEntry(source_mac, i_hdr->ip_src);
+      getArp().insertArpEntry(source_mac, i_hdr->ip_src);
     }
 
     // Find next hop IP in routing table using longest matching prefix
@@ -96,13 +97,13 @@ SimpleRouter::processPacket(const Buffer& packet, const std::string& inIface)
     std::cerr << "Next hop interface is " << dest_int->name << std::endl;
     memcpy(eth_hdr->ether_shost, dest_int->addr.data(), ETHER_ADDR_LEN);
 
-    std::shared_ptr<ArpEntry> cache_entry = m_arp.lookup(i_hdr->ip_dst);
+    std::shared_ptr<ArpEntry> cache_entry = getArp().lookup(i_hdr->ip_dst);
     // If destination IP is already in ARP cache
     if (cache_entry) {
       if (ipToString(next_hop.dest) == "0.0.0.0") // Packet addressed to endnode on current router
         memcpy(eth_hdr->ether_dhost, (cache_entry->mac).data(), ETHER_ADDR_LEN);
       else {
-        memcpy(eth_hdr->ether_dhost, (m_arp.lookup(next_hop.dest)->mac).data(), ETHER_ADDR_LEN);
+        memcpy(eth_hdr->ether_dhost, (getArp().lookup(next_hop.dest)->mac).data(), ETHER_ADDR_LEN);
       }
 
       memcpy(new_packet.data()+sizeof(ethernet_hdr), i_hdr, sizeof(ip_hdr));
@@ -110,7 +111,7 @@ SimpleRouter::processPacket(const Buffer& packet, const std::string& inIface)
     }
 
     else {
-      m_arp.queueArpRequest(next_hop.dest, new_packet, dest_int->name);
+      getArp().queueArpRequest(next_hop.dest, new_packet, dest_int->name);
     }
 
   }
