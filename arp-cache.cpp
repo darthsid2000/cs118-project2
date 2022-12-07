@@ -73,6 +73,7 @@ ArpCache::handleRequest(std::shared_ptr<ArpRequest> request) {
       a_hdr->arp_op = htons(arp_op_request);
       memcpy(a_hdr->arp_sha, source_int->addr.data(), ETHER_ADDR_LEN);
       a_hdr->arp_sip = source_int->ip;
+      memset(a_hdr->arp_tha, 0xFF, ETHER_ADDR_LEN);
       a_hdr->arp_tip = request->ip;
 
       m_router.sendPacket(packet, source_int->name);

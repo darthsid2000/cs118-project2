@@ -48,9 +48,36 @@ SimpleRouter::processPacket(const Buffer& packet, const std::string& inIface)
 
   // Handle ARP packets
   if (eth_hdr->ether_type == htons(ethertype_arp)) {
-    std::cerr << "Received ARP packet" << std::endl;
     
     arp_hdr* a_hdr = (arp_hdr *)(new_packet.data() + sizeof(ethernet_hdr));
+
+    // Handle ARP request
+    if (a_hdr->arp_op == htons(arp_op_request)) {
+      std::cerr << "Received ARP request for " << a_hdr->arp_tip << std::endl;
+      
+      const Interface* dest_int = findIfaceByIp(a_hdr->arp_tip);
+      if (dest_int) {
+        eth_hdr->ether_dhost = eth_hdr->ether_shost;
+        eth_hdr->ether_shost = dest_int->addr;
+
+        a_hdr->arp_op = htons(arp_op_reply);
+        a_hdr->arp_tip = a_hdr->arp_sip;
+        a_hdr->arp_tha = a_hdr->arp_sha;
+        a_hdr->arp_sip = dest_int->ip;
+        memcpy(a_hdr->arp_sha, dest_int->addr.data(), ETHER_ADDR_LEN);
+
+        std::cerr << "Sent ARP reply to " << dest_int->name << std::endl;
+        print_hdrs(new_packet);
+
+        sendPacket(new_packet, dest_int->name);
+      }
+    }
+
+    // Handle ARP reply
+    else if (a_hdr->arp_op == htons(arp_op_reply)) {
+      std::cerr << "Received ARP reply from " << a_hdr->arp_tip << std::endl;
+      
+    }
   }
 
   // Handle IP packets
@@ -74,13 +101,13 @@ SimpleRouter::processPacket(const Buffer& packet, const std::string& inIface)
     i_hdr->ip_sum = 0;
     i_hdr->ip_sum = cksum(i_hdr, sizeof(ip_hdr));
 
-    // If source IP not already in ARP cache, record it
+    /*// If source IP not already in ARP cache, record it
     if (!m_arp.lookup(i_hdr->ip_src)) {
       std::cerr << "Recording source in ARP cache" << std::endl;
       Buffer source_mac(sizeof(ETHER_ADDR_LEN));
       memcpy(source_mac.data(), eth_hdr->ether_shost, ETHER_ADDR_LEN);
       m_arp.insertArpEntry(source_mac, i_hdr->ip_src);
-    }
+    }*/
 
     // Find next hop IP in routing table using longest matching prefix
     RoutingTableEntry next_hop;
