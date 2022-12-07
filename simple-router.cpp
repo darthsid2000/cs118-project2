@@ -98,11 +98,11 @@ SimpleRouter::processPacket(const Buffer& packet, const std::string& inIface)
 
     const Interface* dest_int = findIfaceByIp(i_hdr->ip_dst);
 
-    // If header is too short or invalid checksum or datagram is destined to current router, discard
+    /*// If header is too short or invalid checksum or datagram is destined to current router, discard
     if (i_hdr->ip_hl < 5 || cksum(i_hdr, sizeof(ip_hdr)) != 0xffff || dest_int) {
       std::cerr << "Invalid IP packet" << std::endl;
       return;
-    }
+    }*/
 
     i_hdr->ip_ttl--;
     if (i_hdr->ip_ttl < 0)
