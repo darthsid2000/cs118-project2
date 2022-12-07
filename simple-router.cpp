@@ -74,10 +74,10 @@ SimpleRouter::processPacket(const Buffer& packet, const std::string& inIface)
     ArpCache arp = m_arp;
 
     // If source IP not already in ARP cache, record it
-    if (!arp.lookup(i_hdr->ip_src)) {
+    /*if (!arp.lookup(i_hdr->ip_src)) {
       std::cerr << "Recording source in ARP cache" << std::endl;
       arp.insertArpEntry(eth_hdr->ether_shost, i_hdr->ip_src);
-    }
+    }*/
 
     // Find next hop IP in routing table using longest matching prefix
     RoutingTableEntry next_hop;
