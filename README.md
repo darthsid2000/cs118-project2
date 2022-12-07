@@ -26,8 +26,7 @@ This is inherited from UCLA CS118 2017 Spring Quarter Project 3 (http://web.cs.u
 
 ## TODO
 
-    ###########################################################
-    ##                                                       ##
-    ## REPLACE CONTENT OF THIS FILE WITH YOUR PROJECT REPORT ##
-    ##                                                       ##
-    ###########################################################
+Name: Siddarth Chalasani
+UID: 705192236
+
+No additional libraries or code examples used. Used linked Wikipedia pages in specifications as references.
