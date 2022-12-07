@@ -117,7 +117,7 @@ struct ArpEntry {
 
 class ArpCache {
 public:
-  ArpCache(SimpleRouter& router);
+  ArpCache(SimpleRouter* router);
 
   ~ArpCache();
 
@@ -200,7 +200,7 @@ private:
   ticker();
 
 private:
-  SimpleRouter& m_router;
+  SimpleRouter* m_router;
 
   std::list<std::shared_ptr<ArpEntry>> m_cacheEntries;
   std::list<std::shared_ptr<ArpRequest>> m_arpRequests;

@@ -61,7 +61,7 @@ ArpCache::handleRequest(std::shared_ptr<ArpRequest> request) {
       ethernet_hdr* eth_hdr = (ethernet_hdr *)packet.data();
       arp_hdr* a_hdr = (arp_hdr *)(packet.data() + sizeof(ethernet_hdr));
 
-      const Interface* source_int = m_router.findIfaceByName(m_router.getRoutingTable().lookup(request->ip).ifName);
+      const Interface* source_int = m_router->findIfaceByName(m_router->getRoutingTable().lookup(request->ip).ifName);
       memcpy(eth_hdr->ether_shost, source_int->addr.data(), ETHER_ADDR_LEN);
       memset(eth_hdr->ether_dhost, 0xFF, ETHER_ADDR_LEN);
       eth_hdr->ether_type = ethertype_arp;
@@ -75,7 +75,7 @@ ArpCache::handleRequest(std::shared_ptr<ArpRequest> request) {
       a_hdr->arp_sip = source_int->ip;
       a_hdr->arp_tip = request->ip;
 
-      m_router.sendPacket(packet, source_int->name);
+      m_router->sendPacket(packet, source_int->name);
       std::cerr << "Sent ARP request for IP " << request->ip << std::endl;
       request->timeSent = now;
       request->nTimesSent++;
@@ -87,7 +87,7 @@ ArpCache::handleRequest(std::shared_ptr<ArpRequest> request) {
 
 // You should not need to touch the rest of this code.
 
-ArpCache::ArpCache(SimpleRouter& router)
+ArpCache::ArpCache(SimpleRouter* router)
   : m_router(router)
   , m_shouldStop(false)
   , m_tickerThread(std::bind(&ArpCache::ticker, this))
