@@ -76,7 +76,16 @@ SimpleRouter::processPacket(const Buffer& packet, const std::string& inIface)
     // Handle ARP reply
     else if (a_hdr->arp_op == htons(arp_op_reply)) {
       std::cerr << "Received ARP reply from " << a_hdr->arp_tip << std::endl;
-
+      Buffer source_mac(ETHER_ADDR_LEN);
+      memcpy(source_mac.data(), a_hdr->arp_sha, ETHER_ADDR_LEN);
+      std::shared_ptr<ArpRequest> request = m_arp.insertArpEntry(source_mac, a_hdr->arp_sip);
+      if (request) {
+        Buffer mac = (m_arp.lookup(a_hdr->arp_sip))->mac;
+        for (const auto pending : request->packets) {
+          memcpy(pending.packet.data(), mac.data(), ETHER_ADDR_LEN);
+          sendPacket(pending.packet, pending.iface);
+        }
+      }
     }
   }
 
