@@ -71,7 +71,7 @@ SimpleRouter::processPacket(const Buffer& packet, const std::string& inIface)
       return;
     i_hdr->ip_sum = 0;
     i_hdr->ip_sum = cksum(i_hdr, sizeof(ip_hdr));
-    ArpCache arp = getArp();
+    ArpCache arp = m_arp;
 
     // If source IP not already in ARP cache, record it
     if (!arp.lookup(i_hdr->ip_src)) {
