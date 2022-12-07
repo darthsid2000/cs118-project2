@@ -33,6 +33,54 @@ ArpCache::periodicCheckArpRequestsAndCacheEntries()
 
   // FILL THIS IN
 
+  for (const auto it = m_arpRequests.begin(); it != m_arpRequests.end(); it++)
+    handleRequest(*it);
+
+  std::vector<std::shared_ptr<ArpEntry>> removal;
+  for (const auto it = m_cacheEntries.begin(); it != m_cacheEntries.end(); it++)
+    if (!(*it)->isValid) {
+      std::cerr << "Deleting ARP cache entry mapping " << (*it)->ip << " to " << (*it)->mac << std::endl;
+      removal.push_back(*it);
+    }
+  
+  for (const auto it = removal.begin(); it != removal.end(); it++)
+    m_cacheEntries.remove(*it);
+
+}
+
+void
+ArpCache::handleRequest(std::shared_ptr<ArpRequest> request) {
+  auto now = steady_clock::now();
+  if (!request->nTimesSent || now - request->timeSent > seconds(1)) {
+    if (request->nTimesSent >= MAX_SENT_TIME) {
+      std::cerr << "Sent request for " << request->ip << " too many times" << std::endl;
+      removeArpRequest(request);
+    }
+    else {
+      Buffer packet(sizeof(ethernet_hdr) + sizeof(arp_hdr));
+      ethernet_hdr* eth_hdr = (ethernet_hdr *)packet.data();
+      arp_hdr* a_hdr = (arp_hdr *)(packet.data() + sizeof(ethernet_hdr));
+
+      const Interface* source_int = m_router.findIfaceByName(m_router.getRoutingTable().lookup(request->ip).ifName);
+      memcpy(eth_hdr->ether_shost, source_int->addr.data(), ETHER_ADDR_LEN);
+      memset(eth_hdr->ether_dhost, 0xFF, ETHER_ADDR_LEN);
+      eth_hdr->ether_type = ethertype_arp;
+
+      a_hdr->arp_hrd = arp_hrd_ethernet;
+      a_hdr->arp_pro = ethertype_ip;
+      a_hdr->arp_hln = 6;
+      a_hdr->arp_pln = 4;
+      a_hdr->arp_op = arp_op_request;
+      memcpy(a_hdr->arp_sha, source_int->addr.data(), ETHER_ADDR_LEN);
+      a_hdr->arp_sip = source_int->ip;
+      a_hdr->arp_tip = request->ip;
+
+      m_router.sendPacket(packet, source_int->name);
+      std::cerr << "Sent ARP request for IP " << request->ip << std::endl;
+      request->timeSent = now;
+      request->nTimesSent++;
+    }
+  }
 }
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////

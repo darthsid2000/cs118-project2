@@ -47,12 +47,12 @@ SimpleRouter::processPacket(const Buffer& packet, const std::string& inIface)
   ethernet_hdr* eth_hdr = (ethernet_hdr *)new_packet.data();
 
   // Handle ARP packets
-  if (eth_hdr->ether_type == ntohs(ethertype_arp)) {
+  if (eth_hdr->ether_type == ethertype_arp) {
     return;
   }
 
   // Handle IP packets
-  else if (eth_hdr->ether_type == ntohs(ethertype_ip)) {
+  else if (eth_hdr->ether_type == ethertype_ip) {
 
     std::cerr << "Received IPv4 packet" << std::endl;
 
@@ -108,7 +108,7 @@ SimpleRouter::processPacket(const Buffer& packet, const std::string& inIface)
     }
 
     else {
-      arp.queueArpRequest(next_hop.dest, new_packet, dest_int.name);
+      arp.queueArpRequest(next_hop.dest, new_packet, dest_int->name);
     }
 
   }
