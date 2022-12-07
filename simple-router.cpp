@@ -57,12 +57,12 @@ SimpleRouter::processPacket(const Buffer& packet, const std::string& inIface)
       
       const Interface* dest_int = findIfaceByIp(a_hdr->arp_tip);
       if (dest_int) {
-        eth_hdr->ether_dhost = eth_hdr->ether_shost;
-        eth_hdr->ether_shost = dest_int->addr;
+        memcpy(eth_hdr->ether_dhost, eth_hdr->ether_shost, ETHER_ADDR_LEN);
+        memcpy(eth_hdr->ether_shost, dest_int->addr.data(), ETHER_ADDR_LEN);
 
         a_hdr->arp_op = htons(arp_op_reply);
         a_hdr->arp_tip = a_hdr->arp_sip;
-        a_hdr->arp_tha = a_hdr->arp_sha;
+        memcpy(a_hdr->arp_tha, a_hdr->arp_sha, ETHER_ADDR_LEN);
         a_hdr->arp_sip = dest_int->ip;
         memcpy(a_hdr->arp_sha, dest_int->addr.data(), ETHER_ADDR_LEN);
 
@@ -76,7 +76,7 @@ SimpleRouter::processPacket(const Buffer& packet, const std::string& inIface)
     // Handle ARP reply
     else if (a_hdr->arp_op == htons(arp_op_reply)) {
       std::cerr << "Received ARP reply from " << a_hdr->arp_tip << std::endl;
-      
+
     }
   }
 
