@@ -71,13 +71,15 @@ SimpleRouter::processPacket(const Buffer& packet, const std::string& inIface)
       return;
     i_hdr->ip_sum = 0;
     i_hdr->ip_sum = cksum(i_hdr, sizeof(ip_hdr));
-    ArpCache arp = m_arp;
+    ArpCache arp = getArp();
 
     // If source IP not already in ARP cache, record it
-    /*if (!arp.lookup(i_hdr->ip_src)) {
+    if (!arp.lookup(i_hdr->ip_src)) {
       std::cerr << "Recording source in ARP cache" << std::endl;
-      arp.insertArpEntry(eth_hdr->ether_shost, i_hdr->ip_src);
-    }*/
+      Buffer source_mac(sizeof(ETHER_ADDR_LEN));
+      memcpy(source_mac, eth_hdr->ether_shost, ETHER_ADDR_LEN);
+      arp.insertArpEntry(source_mac, i_hdr->ip_src);
+    }
 
     // Find next hop IP in routing table using longest matching prefix
     RoutingTableEntry next_hop;
