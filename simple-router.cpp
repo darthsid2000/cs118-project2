@@ -43,8 +43,22 @@ SimpleRouter::processPacket(const Buffer& packet, const std::string& inIface)
   if (packet.size() < 64)
     return;*/
 
+
   Buffer new_packet(packet); // Create duplicate packet
   ethernet_hdr* eth_hdr = (ethernet_hdr *)new_packet.data();
+
+  bool to_broadcast = true;
+  bool to_me = true;
+
+  for (int i = 0; i < ETHER_ADDR_LEN; i++) {
+    if (!eth_hdr->ether_dhost[i])
+      to_broadcast = false;
+    if (eth_hdr->ether_dhost[i] != iface->addr[i])
+      to_me = false;
+  }
+
+  if (!to_broadcast && !to_me)
+    return;
 
   // Handle ARP packets
   if (eth_hdr->ether_type == htons(ethertype_arp)) {
@@ -98,11 +112,19 @@ SimpleRouter::processPacket(const Buffer& packet, const std::string& inIface)
 
     const Interface* dest_int = findIfaceByIp(i_hdr->ip_dst);
 
-    /*// If header is too short or invalid checksum or datagram is destined to current router, discard
-    if (i_hdr->ip_hl < 5 || cksum(i_hdr, sizeof(ip_hdr)) != 0xffff || dest_int) {
-      std::cerr << "Invalid IP packet" << std::endl;
+    // If header is too short or invalid checksum or datagram is destined to current router, discard
+    if (i_hdr->ip_hl < 5) {
+      std::cerr << "Invalid IP header length" << std::endl;
       return;
-    }*/
+    }
+    if (cksum(i_hdr, sizeof(ip_hdr)) != 0xffff) {
+      std::cerr << "Bad checksum" << std::endl;
+      return;
+    }
+    if (dest_int) {
+      std::cerr << "IP packet destined to router" << std::endl;
+      return;
+    }
 
     i_hdr->ip_ttl--;
     if (i_hdr->ip_ttl < 0)
@@ -136,18 +158,17 @@ SimpleRouter::processPacket(const Buffer& packet, const std::string& inIface)
     std::shared_ptr<ArpEntry> cache_entry = m_arp.lookup(i_hdr->ip_dst);
     // If destination IP is already in ARP cache
     if (cache_entry) {
-      if (ipToString(next_hop.dest) == "0.0.0.0") // Packet addressed to endnode on current router
-        memcpy(eth_hdr->ether_dhost, (cache_entry->mac).data(), ETHER_ADDR_LEN);
-      else {
+      //if (ipToString(next_hop.dest) == "0.0.0.0") // Packet addressed to endnode on current router
+      //  memcpy(eth_hdr->ether_dhost, (cache_entry->mac).data(), ETHER_ADDR_LEN);
+      //else {
         memcpy(eth_hdr->ether_dhost, (m_arp.lookup(next_hop.dest)->mac).data(), ETHER_ADDR_LEN);
-      }
+      //}
 
-      memcpy(new_packet.data()+sizeof(ethernet_hdr), i_hdr, sizeof(ip_hdr));
       sendPacket(new_packet, next_hop.ifName);
     }
 
     else {
-      m_arp.queueArpRequest(next_hop.dest, new_packet, dest_int->name);
+      m_arp.queueArpRequest(next_hop.dest, new_packet, next_hop.ifName);
     }
 
   }
