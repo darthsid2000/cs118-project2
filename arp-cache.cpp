@@ -34,17 +34,17 @@ ArpCache::periodicCheckArpRequestsAndCacheEntries()
   // FILL THIS IN
 
   for (const auto it : m_arpRequests)
-    handleRequest(*it);
+    handleRequest(it);
 
   std::vector<std::shared_ptr<ArpEntry>> removal;
   for (const auto it : m_cacheEntries)
-    if (!(*it)->isValid) {
-      std::cerr << "Deleting ARP cache entry mapping for " << (*it)->ip << std::endl;
-      removal.push_back(*it);
+    if (!it->isValid) {
+      std::cerr << "Deleting ARP cache entry mapping for " << it->ip << std::endl;
+      removal.push_back(it);
     }
   
   for (const auto it : removal)
-    m_cacheEntries.remove(*it);
+    m_cacheEntries.remove(it);
 
 }
 
