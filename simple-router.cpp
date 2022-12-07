@@ -48,6 +48,7 @@ SimpleRouter::processPacket(const Buffer& packet, const std::string& inIface)
 
   // Handle ARP packets
   if (eth_hdr->ether_type == ethertype_arp) {
+    std::cerr << "Received ARP packet" << std::endl;
     return;
   }
 
