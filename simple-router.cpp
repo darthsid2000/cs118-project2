@@ -53,13 +53,18 @@ SimpleRouter::processPacket(const Buffer& packet, const std::string& inIface)
 
   // Handle IP packets
   else if (eth_hdr->ether_type == ntohs(ethertype_ip)) {
+
+    std::cerr << "Received IPv4 packet" << std::endl;
+
     ip_hdr* i_hdr = (ip_hdr *)(new_packet.data() + sizeof(ethernet_hdr));
 
     const Interface* dest_int = findIfaceByIp(i_hdr->ip_dst);
 
     // If header is too short or invalid checksum or datagram is destined to current router, discard
-    if (i_hdr->ip_hl < 5 || cksum(i_hdr, sizeof(ip_hdr)) != 0xffff || dest_int)
+    if (i_hdr->ip_hl < 5 || cksum(i_hdr, sizeof(ip_hdr)) != 0xffff || dest_int) {
+      std::cerr << "Invalid IP packet" << std::endl;
       return;
+    }
 
     i_hdr->ip_ttl--;
     if (i_hdr->ip_ttl < 0)
@@ -69,8 +74,10 @@ SimpleRouter::processPacket(const Buffer& packet, const std::string& inIface)
     ArpCache arp = getArp();
 
     // If source IP not already in ARP cache, record it
-    if (!arp.lookup(i_hdr->ip_src))
+    if (!arp.lookup(i_hdr->ip_src)) {
+      std::cerr << "Recording source in ARP cache" << std::endl;
       arp.insertArpEntry(eth_hdr->ether_shost, i_hdr->ip_src);
+    }
 
     // Find next hop IP in routing table using longest matching prefix
     RoutingTableEntry next_hop;
@@ -79,10 +86,12 @@ SimpleRouter::processPacket(const Buffer& packet, const std::string& inIface)
       next_hop = rt.lookup(i_hdr->ip_dst);
     }
     catch (std::runtime_error& e) {
+      std::cerr << "Could not find next hop in routing table" << std::endl;
       return;
     }
 
     dest_int = findIfaceByName(next_hop.ifName);
+    std::cerr << "Next hop interface is " << dest_int->name << std::endl;
     memcpy(eth_hdr->ether_shost, dest_int->addr.data(), ETHER_ADDR_LEN);
 
     std::shared_ptr<ArpEntry> cache_entry = arp.lookup(i_hdr->ip_dst);
