@@ -45,6 +45,7 @@ SimpleRouter::processPacket(const Buffer& packet, const std::string& inIface)
 
   Buffer new_packet(packet); // Create duplicate packet
   ethernet_hdr* eth_hdr = (ethernet_hdr *)new_packet.data();
+  std::cerr << "Created duplicate packet" << std::endl;
 
   // Handle ARP packets
   if (eth_hdr->ether_type == ethertype_arp) {
