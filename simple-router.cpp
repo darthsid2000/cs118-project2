@@ -77,7 +77,7 @@ SimpleRouter::processPacket(const Buffer& packet, const std::string& inIface)
     if (!arp.lookup(i_hdr->ip_src)) {
       std::cerr << "Recording source in ARP cache" << std::endl;
       Buffer source_mac(sizeof(ETHER_ADDR_LEN));
-      memcpy(source_mac, eth_hdr->ether_shost, ETHER_ADDR_LEN);
+      memcpy(source_mac.data(), eth_hdr->ether_shost, ETHER_ADDR_LEN);
       arp.insertArpEntry(source_mac, i_hdr->ip_src);
     }
 
